@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A.R.G.U.S. - Jarvis Interface</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/vision_bundle.js"></script>
+    
+    <link rel="stylesheet" href="jarvis-ui.css">
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+    
+    <div id="app-container">
+        
+        <div id="status-bar" class="glass-panel">
+            <div class="status-left">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <span class="logo-text">A.R.G.U.S.</span>
+                </div>
+                <div class="status-indicator">
+                    <div class="rec-dot" id="rec-dot"></div>
+                    <span id="status-text">STANDBY</span>
+                </div>
+            </div>
+            
+            <div class="status-right">
+                <div class="vital-mini" id="cpu-mini">
+                    <span class="vital-icon">💻</span>
+                    <span class="vital-value">--</span>
+                </div>
+                <div class="vital-mini" id="ram-mini">
+                    <span class="vital-icon">🧠</span>
+                    <span class="vital-value">--</span>
+                </div>
+                <div class="vital-mini" id="temp-mini">
+                    <span class="vital-icon">🌡️</span>
+                    <span class="vital-value">--</span>
+                </div>
+                <div class="vital-mini" id="battery-mini">
+                    <span class="vital-icon">⚡</span>
+                    <span class="vital-value">--</span>
+                </div>
+                <div class="time-display" id="time-display">00:00</div>
+            </div>
+        </div>
+        
+        <div id="panel-container">
+            
+            <div class="panel glass-panel draggable resizable" 
+                 id="context-panel" 
+                 data-default-pos="20,80" 
+                 data-default-size="320,500">
+                <div class="panel-header">
+                    <span class="panel-icon">📍</span>
+                    <span class="panel-title">CONTEXT</span>
+                    <div class="panel-controls">
+                        <button class="panel-btn" data-action="minimize">−</button>
+                        <button class="panel-btn" data-action="maximize">□</button>
+                        <button class="panel-btn" data-action="close">×</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="context-content">
+                    <div class="context-section">
+                        <div class="section-title">CURRENT ACTIVITY</div>
+                        <div class="context-item">
+                            <span class="context-label">Activity:</span>
+                            <span class="context-value" id="current-activity">IDLE</span>
+                        </div>
+                        <div class="context-item">
+                            <span class="context-label">App:</span>
+                            <span class="context-value" id="current-app">—</span>
+                        </div>
+                        <div class="context-item">
+                            <span class="context-label">File:</span>
+                            <span class="context-value" id="current-file">—</span>
+                        </div>
+                        <div class="context-item">
+                            <span class="context-label">Focus:</span>
+                            <span class="context-value" id="focus-time">0 min</span>
+                        </div>
+                    </div>
+                    
+                    <div class="context-section">
+                        <div class="section-title">RELEVANT MEMORIES</div>
+                        <div class="memory-feed" id="memory-feed">
+                            <div class="memory-item">System initialized</div>
+                        </div>
+                    </div>
+                    
+                    <div class="context-section">
+                        <div class="section-title">SUGGESTIONS</div>
+                        <div id="suggestions-container">
+                            <div class="suggestion-item">Awaiting context...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            
+            <div class="panel glass-panel draggable resizable" 
+                 id="vitals-panel" 
+                 data-default-pos="right-20,80" 
+                 data-default-size="300,400">
+                <div class="panel-header">
+                    <span class="panel-icon">💻</span>
+                    <span class="panel-title">SYSTEM STATUS</span>
+                    <div class="panel-controls">
+                        <button class="panel-btn" data-action="minimize">−</button>
+                        <button class="panel-btn" data-action="maximize">□</button>
+                        <button class="panel-btn" data-action="close">×</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="vitals-content">
+                    <div class="vital-gauge" id="cpu-gauge">
+                        <div class="gauge-label">CPU</div>
+                        <svg class="circular-gauge" viewBox="0 0 100 100">
+                            <circle class="gauge-bg" cx="50" cy="50" r="45"></circle>
+                            <circle class="gauge-fill" cx="50" cy="50" r="45" id="cpu-circle"></circle>
+                            <text class="gauge-value" x="50" y="55" id="cpu-text">0%</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="vital-gauge" id="ram-gauge">
+                        <div class="gauge-label">RAM</div>
+                        <svg class="circular-gauge" viewBox="0 0 100 100">
+                            <circle class="gauge-bg" cx="50" cy="50" r="45"></circle>
+                            <circle class="gauge-fill" cx="50" cy="50" r="45" id="ram-circle"></circle>
+                            <text class="gauge-value" x="50" y="55" id="ram-text">0%</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="vital-gauge" id="gpu-gauge">
+                        <div class="gauge-label">GPU</div>
+                        <svg class="circular-gauge" viewBox="0 0 100 100">
+                            <circle class="gauge-bg" cx="50" cy="50" r="45"></circle>
+                            <circle class="gauge-fill" cx="50" cy="50" r="45" id="gpu-circle"></circle>
+                            <text class="gauge-value" x="50" y="55" id="gpu-text">0%</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="vital-details">
+                        <div class="vital-row">
+                            <span class="vital-label">Temperature:</span>
+                            <span class="vital-data" id="temp-data">-- °C</span>
+                        </div>
+                        <div class="vital-row">
+                            <span class="vital-label">Network:</span>
+                            <span class="vital-data" id="net-data">-- MB/s</span>
+                        </div>
+                        <div class="vital-row">
+                            <span class="vital-label">Disk:</span>
+                            <span class="vital-data" id="disk-data">-- %</span>
+                        </div>
+                    </div>
+                    
+                    <button class="action-btn" id="run-diagnostics">
+                        <span class="btn-icon">🔍</span>
+                        <span class="btn-text">RUN DIAGNOSTICS</span>
+                    </button>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            
+            <div class="panel glass-panel draggable resizable" 
+                 id="chat-console" 
+                 data-default-pos="center-bottom" 
+                 data-default-size="700,350">
+                <div class="panel-header">
+                    <span class="panel-icon">💬</span>
+                    <span class="panel-title">CHAT CONSOLE</span>
+                    <div class="panel-controls">
+                        <button class="panel-btn" data-action="export" title="Export Chat">💾</button>
+                        <button class="panel-btn" data-action="clear" title="Clear Chat">🗑️</button>
+                        <button class="panel-btn" data-action="minimize">−</button>
+                        <button class="panel-btn" data-action="maximize">□</button>
+                    </div>
+                </div>
+                <div class="panel-content chat-container">
+                    <div class="chat-history" id="chat-history">
+                        <div class="chat-message system-message">
+                            <div class="message-icon">⚙️</div>
+                            <div class="message-content">
+                                <div class="message-text">ARGUS initialized. All systems operational.</div>
+                                <div class="message-time" id="init-time">--:--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="scroll-to-bottom" id="scroll-to-bottom" style="display: none;">
+                        <span>New message ↓</span>
+                    </button>
+                    
+                    <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                        <div class="message-icon">🤖</div>
+                        <div class="typing-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input-container">
+                        <div class="voice-waveform" id="voice-waveform" style="display: none;">
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                            <div class="waveform-bar"></div>
+                        </div>
+                        
+                        <input 
+                            type="text" 
+                            class="chat-input" 
+                            id="chat-input" 
+                            placeholder="Type command or hold 🎤 to speak..."
+                            autocomplete="off"
+                        />
+                        
+                        <button class="input-btn voice-btn" id="voice-btn" title="Hold to speak">
+                            🎤
+                        </button>
+                        <button class="input-btn send-btn" id="send-btn" title="Send message">
+                            ➤
+                        </button>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            
+            <div class="panel glass-panel draggable resizable" 
+                 id="workspace-panel" 
+                 data-default-pos="360,80" 
+                 data-default-size="800,600"
+                 style="display: none;">
+                <div class="panel-header">
+                    <span class="panel-icon">🎮</span>
+                    <span class="panel-title" id="workspace-title">WORKSPACE</span>
+                    <div class="panel-controls">
+                        <button class="panel-btn" data-action="minimize">−</button>
+                        <button class="panel-btn" data-action="maximize">□</button>
+                        <button class="panel-btn" data-action="close">×</button>
+                    </div>
+                </div>
+                <div class="panel-content workspace-content" id="workspace-content">
+                    <div class="workspace-placeholder">
+                        <div class="placeholder-icon">🎯</div>
+                        <div class="placeholder-text">Workspace Ready</div>
+                        <div class="placeholder-subtitle">Open web apps, 3D models, or dossiers</div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            <div id="hand-overlay" style="
+                display: none; 
+                position: absolute; 
+                top: 20px; 
+                right: 20px; 
+                background: rgba(10, 15, 20, 0.95); 
+                padding: 20px; 
+                border-radius: 12px; 
+                border: 2px solid var(--gold-primary);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(10px);
+                min-width: 280px;
+                z-index: 100;">
+                
+                <div style="
+                    color: var(--gold-primary); 
+                    font-family: 'Orbitron', sans-serif; 
+                    font-size: 12px; 
+                    letter-spacing: 3px; 
+                    margin-bottom: 15px;
+                    text-align: center;
+                    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+                    padding-bottom: 10px;">
+                    🤖 HAND TRACKING ACTIVE
+                </div>
+                
+                <div style="
+                    font-size: 11px; 
+                    color: var(--text-secondary); 
+                    line-height: 2;
+                    font-family: 'Inter', sans-serif;">
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">🤏</span>
+                        <span><strong>Pinch:</strong> Rotate Model</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">✋</span>
+                        <span><strong>Spread:</strong> Zoom Out</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👆</span>
+                        <span><strong>Point:</strong> Select Object</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">✌️</span>
+                        <span><strong>Peace:</strong> Screenshot</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">✊</span>
+                        <span><strong>Fist:</strong> Cancel Action</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👍</span>
+                        <span><strong>Thumbs Up:</strong> Confirm</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👎</span>
+                        <span><strong>Thumbs Down:</strong> Reject</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👌</span>
+                        <span><strong>OK Sign:</strong> Acknowledge</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👉</span>
+                        <span><strong>Swipe Right:</strong> Next Panel</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👈</span>
+                        <span><strong>Swipe Left:</strong> Previous</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">👋</span>
+                        <span><strong>Wave:</strong> Wake Argus</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">🤚</span>
+                        <span><strong>Push:</strong> Close Panel</span>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">🖐️</span>
+                        <span><strong>Pull:</strong> Open Menu</span>
+                    </div>
+                </div>
+                
+                <div style="
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 1px solid rgba(212, 175, 55, 0.3);
+                    text-align: center;
+                    color: var(--success);
+                    font-size: 10px;
+                    font-family: 'Roboto Mono', monospace;">
+                    <span id="hand-tracking-fps">0 FPS</span> | 
+                    <span id="hand-tracking-hands">0 hands</span>
+                </div>
+            </div>
+
+            <div id="gesture-feedback" style="display: none;"></div>
+            
+            <div class="panel glass-panel draggable resizable" 
+                 id="forge-panel" 
+                 data-default-pos="20,bottom-20" 
+                 data-default-size="350,250"
+                 style="display: none;">
+                <div class="panel-header">
+                    <span class="panel-icon">🔨</span>
+                    <span class="panel-title">TOOL FORGE</span>
+                    <div class="panel-controls">
+                        <button class="panel-btn" data-action="test">🧪</button>
+                        <button class="panel-btn" data-action="deploy">🚀</button>
+                        <button class="panel-btn" data-action="close">×</button>
+                    </div>
+                </div>
+                <div class="panel-content forge-content">
+                    <textarea 
+                        class="code-editor" 
+                        id="code-editor" 
+                        placeholder="def run():
+    # Your code here
+    pass"
+                    ></textarea>
+                    <div class="forge-status" id="forge-status">
+                        <span class="status-icon">💡</span>
+                        <span class="status-text">Ready to forge</span>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            
+        </div>
+        
+        <div id="radial-menu" class="radial-menu" style="display: none;">
+            <div class="radial-center">⚡</div>
+            <button class="radial-option" data-action="search" style="--angle: 0deg;">
+                <span class="radial-icon">🔍</span>
+                <span class="radial-label">Search</span>
+            </button>
+            <button class="radial-option" data-action="diagnostics" style="--angle: 60deg;">
+                <span class="radial-icon">📊</span>
+                <span class="radial-label">Diagnostics</span>
+            </button>
+            <button class="radial-option" data-action="forge" style="--angle: 120deg;">
+                <span class="radial-icon">🔨</span>
+                <span class="radial-label">Forge</span>
+            </button>
+            <button class="radial-option" data-action="3d" style="--angle: 180deg;">
+                <span class="radial-icon">🎮</span>
+                <span class="radial-label">3D View</span>
+            </button>
+            <button class="radial-option" data-action="webview" style="--angle: 240deg;">
+                <span class="radial-icon">🌐</span>
+                <span class="radial-label">Web App</span>
+            </button>
+            <button class="radial-option" data-action="dossier" style="--angle: 300deg;">
+                <span class="radial-icon">🔍</span>
+                <span class="radial-label">Dossier</span>
+            </button>
+        </div>
+        
+        <div id="toast-container"></div>
+        
+        <div id="taskbar" class="taskbar glass-panel" style="display: none;"></div>
+        
+    </div>
+    
+    <script src="renderer.js"></script>
+    <script src="three-viewport.js"></script>
+    <script src="hand-tracking.js"></script>
+    
+    <script>
+        // Initialize WebSocket connection to main.py
+        let ws;
+        let messageQueue = [];
+
+        function connectToBackend() {
+            ws = new WebSocket('ws://localhost:8765');
+            
+            ws.onopen = () => {
+                console.log('Connected to ARGUS backend');
+                window.argusBackend = ws;
+                
+                // Send queued messages
+                while (messageQueue.length > 0) {
+                    ws.send(messageQueue.shift());
+                }
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (window.handleBackendMessage) {
+                    window.handleBackendMessage(data);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected from backend. Reconnecting...');
+                window.argusBackend = null;
+                setTimeout(connectToBackend, 3000);
+            };
+        }
+        
+        connectToBackend();
+    </script>
+</body>
+</html>
